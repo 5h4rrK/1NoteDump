@@ -1,12 +1,11 @@
 import re
 import os
 import sys
-
+import struct
 
 '''
 It is a python script that scans for the EmbeddedGuidfileType(Same for all emebedded files) 
 and followed by terminating part (same for all) that keeps track of file types.
-
 '''
 
 guidHeader = bytes.fromhex("E4525C7B8CD8A74DAEB15378D02996D3")
@@ -20,9 +19,6 @@ except:
     sys.exit(-1)
 
 embedguidFileType = bytes.fromhex("E716E3BD65261145A4C48D4D0B7A9EAC")
-
-getFileName = bytes.fromhex(
-    "0014CE3400143F1C00209C1D001C221C001C9D1D001C141C0014151C0014841C00141B1C00141C1C0014")
 
 endPayload = bytes.fromhex("3C00690066006E00640066003E00")
 
@@ -76,8 +72,6 @@ class Parser:
         self.extract_payload(file)
         self.dumpReport()
         
-        print("File Types", self.file_types)
-
     def getLocal_GUID(self,file):
 
         for _ in range(len(self.end_parts)):
@@ -103,8 +97,16 @@ class Parser:
 
         temp_ = ''
         for _ in range(len(self.file_types)):
-            temp_ += (self.embedlocalguid[_]  + '        ' + self.file_types[_] + '\n\n')
-        open("Objects/Parsed-Report.txt","w").write(temp_)
+            temp_ += (self.embedlocalguid[_]  + '\t' + self.file_types[_] + '\t' + '\n\n')
+        open("Objects/Parsed-Report.txt", "w").write(temp_)
+
+        temp_ = ''
+        for _ in range(len(self.file_path)):
+
+            temp_ += (self.file_names[_] + '\t\t' +
+                       self.file_path[_] + '\n\n')
+
+        open("Objects/File-Names.txt", "w").write(temp_)
 
 
     def extract_payload(self,file):
@@ -151,6 +153,16 @@ class Parser:
             print(z)
         
     def extractPath(self,file):
-        return
+
+        for _ in range(len(self.file_name_start_index)):
+            self.file_name_start_index[_] += (4 + self.file_name_len[_] *2)
+            file_path_len = struct.unpack("<I",file[self.file_name_start_index[_]:self.file_name_start_index[_] +4])[0]
+            buff = file[self.file_name_start_index[_] +
+                        4: self.file_name_start_index[_] + 4 + file_path_len]
+            z = ''
+            for i in range(0,len(buff),2):
+                z += chr(buff[i])
+            self.file_path.append(z)
+
 
 Parser(file)
