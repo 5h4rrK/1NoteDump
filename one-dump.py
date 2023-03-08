@@ -26,6 +26,8 @@ getFileName = bytes.fromhex(
 
 endPayload = bytes.fromhex("3C00690066006E00640066003E00")
 
+getFileName = bytes.fromhex(
+    "0014CE3400143F1C00209C1D001C221C")
 
 class Parser:
     start_indexes = None
@@ -37,6 +39,12 @@ class Parser:
     extension_indexes = None
     file_types = []
     embedlocalguid = []
+    position = []
+    file_names = []
+    file_name_len = []
+    file_name_start_index = []
+    file_path = []
+    
 
     def __init__(self,file) -> None:
 
@@ -52,6 +60,10 @@ class Parser:
 
         self.extension_indexes = [int.from_bytes(file[self.end_parts[i]+90:\
                                                       self.end_parts[i]+90+4], "little") for i in range(len(self.end_parts))]
+        
+        self.position = [i for i in range(len(file)-16)
+                    if file[i:i+16] == getFileName]
+
 
         print("Embed Start Index = ",self.start_indexes)
         print("Embed File Len = ",self.embedfile_len)
@@ -59,11 +71,15 @@ class Parser:
         print("Extension Indexes = ",self.extension_indexes)
         self.getLocal_GUID(file)
         self.getFileExtension(file)
+        self.findNames(file)
+        self.extractPath(file)
         self.extract_payload(file)
         self.dumpReport()
-        print("File Types = ",self.file_types)
+        
+        print("File Types", self.file_types)
 
     def getLocal_GUID(self,file):
+
         for _ in range(len(self.end_parts)):
             temp = file[self.end_parts[_]+14:self.end_parts[_]+76+14]
             __guid = ''
@@ -74,6 +90,7 @@ class Parser:
 
 
     def getFileExtension(self,file):
+
         for _ in range(len(self.extension_indexes)):
             __extension = ''
             temp = file[self.end_parts[_]+94:self.end_parts[_] + 94 + self.extension_indexes[_]*2]
@@ -83,6 +100,7 @@ class Parser:
         
 
     def dumpReport(self):
+
         temp_ = ''
         for _ in range(len(self.file_types)):
             temp_ += (self.embedlocalguid[_]  + '        ' + self.file_types[_] + '\n\n')
@@ -105,6 +123,34 @@ class Parser:
                 file[self.start_indexes[i]+36:\
                      self.start_indexes[i]+36+\
                         self.embedfile_len[i]])
+            
 
-     
+    def findNames(self,file):
+
+        __filename_temp_buff = []
+        for _ in range(len(self.position)):
+
+            __filename_temp_buff.append(file[self.position[_]:self.position[_] + 16*5])
+        
+        for i in range(len(__filename_temp_buff)):
+
+            for j in range(len(__filename_temp_buff[i])-4):                   # Looking for ? Ex: ?...?
+                if (__filename_temp_buff[i][j] == 63 and __filename_temp_buff[i][j+4] == 63):
+                    self.file_name_start_index.append(self.position[i] + j + 5 + 4)
+                    self.file_name_len.append(int.from_bytes(((file[self.position[i] + j + 5:self.position[i] + j + 8])), 'little'))
+
+                
+        for i in range(len(self.file_name_len)):
+
+            z = ''
+            buff = file[self.file_name_start_index[i]
+                : self.file_name_start_index[i] + self.file_name_len[i]]
+            for _ in range(0, len(buff), 2):
+                z += chr(buff[_])
+            self.file_names.append(z)
+            print(z)
+        
+    def extractPath(self,file):
+        return
+
 Parser(file)
